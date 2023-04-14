@@ -14,8 +14,8 @@ name: Daily Update
 on:
   workflow_dispatch:
   schedule:
-    # Runs at 00:00 every day
-    - cron: '0 0 * * *'
+    # Runs at 21:00 UTC every day (06:00 JST)
+    - cron: '0 21 * * *'
 
 jobs:
   automated_build:

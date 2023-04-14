@@ -1,0 +1,33 @@
+# =============================================================================
+#  Daily Check to Update
+# =============================================================================
+# This workflow checks for changes of the docs in the upstream repository and
+# creates a pull request if there are any changes.
+#
+# Note:
+#   - If the PR contains only the updated.json file, it will be merged automatically.
+#   - If the PR contains other files, it will be merged manually. Due to reviewing
+#     the changes for translation. And the merged commit will be tagged and released.
+#
+name: Daily Update
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Runs at 00:00 every day
+    - cron: '0 0 * * *'
+
+jobs:
+  automated_build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Update
+        run: make
+
+      - name: Create pull request on any file change
+        uses: peter-evans/create-pull-request@v5
+        with:
+            token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}

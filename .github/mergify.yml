@@ -1,0 +1,12 @@
+pull_request_rules:
+  - name: Automatic merge if only updated.json is changed
+    conditions:
+      - author=KEINOS
+      - base=main
+      - title~=^Changes
+      - and:
+        - files=updated.json
+      - "#files=1"
+    actions:
+      merge:
+        method: merge

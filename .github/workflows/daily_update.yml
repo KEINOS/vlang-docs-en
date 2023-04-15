@@ -13,6 +13,7 @@ name: Daily Update
 
 on:
   workflow_dispatch:
+  push:
   schedule:
     # Runs at 21:00 UTC every day (06:00 JST)
     - cron: '0 21 * * *'

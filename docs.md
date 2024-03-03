@@ -49,7 +49,7 @@ by using any of the following commands in a terminal:
 
 * `v init` → adds necessary files to the current folder to make it a V project
 * `v new abc` → creates a new project in the new folder `abc`, by default a "hello world" project.
-* `v new abcd web` → creates a new project in the new folder `abcd`, using the vweb template.
+* `v new --web abcd` → creates a new project in the new folder `abcd`, using the vweb template.
 
 ## Table of Contents
 
@@ -66,7 +66,7 @@ by using any of the following commands in a terminal:
 * [Variables](#variables)
     * [Mutable variables](#mutable-variables)
     * [Initialization vs assignment](#initialization-vs-assignment)
-    * [Declaration errors](#declaration-errors)
+    * [Warnings and declaration errors](#warnings-and-declaration-errors)
 * [V types](#v-types)
     * [Primitive types](#primitive-types)
     * [Strings](#strings)
@@ -78,6 +78,7 @@ by using any of the following commands in a terminal:
         * [Array slices](#array-slices)
     * [Fixed size arrays](#fixed-size-arrays)
     * [Maps](#maps)
+        * [Map update syntax](#map-update-syntax)
 
 </td><td width=33% valign=top>
 
@@ -176,6 +177,9 @@ by using any of the following commands in a terminal:
         * [Compile time code](#compile-time-code)
         * [Compile time types](#compile-time-types)
         * [Environment specific files](#environment-specific-files)
+	* [Debugger](#debugger)
+ 		* [Call stack](#call-stack)
+   		* [Trace](#trace)
     * [Memory-unsafe code](#memory-unsafe-code)
     * [Structs with reference fields](#structs-with-reference-fields)
     * [sizeof and __offsetof](#sizeof-and-__offsetof)
@@ -444,26 +448,60 @@ a, b = b, a
 println('${a}, ${b}') // 1, 0
 ```
 
-### Declaration errors
+### Warnings and declaration errors
 
 In development mode the compiler will warn you that you haven't used the variable
 (you'll get an "unused variable" warning).
 In production mode (enabled by passing the `-prod` flag to v – `v -prod foo.v`)
 it will not compile at all (like in Go).
+```v
+fn main() {
+	a := 10
+	// warning: unused variable `a`
+}
+```
 
+To ignore values returned by a function `_` can be used
+```v
+fn foo() (int, int) {
+	return 2, 3
+}
+
+fn main() {
+	c, _ := foo()
+	print(c)
+	// no warning about unused variable returned by foo.
+}
+```
+
+Unlike most languages, variable shadowing is not allowed. Declaring a variable with a name
+that is already used in a parent scope will cause a compilation error.
 ```v failcompile nofmt
 fn main() {
 	a := 10
 	if true {
 		a := 20 // error: redefinition of `a`
 	}
-	// warning: unused variable `a`
 }
 ```
+While variable shadowing is not allowed, field shadowing is allowed.
+```v
+pub struct Dimension {
+	width  int = -1
+	height int = -1
+}
 
-Unlike most languages, variable shadowing is not allowed. Declaring a variable with a name
-that is already used in a parent scope will cause a compilation error.
+pub struct Test {
+	Dimension
+	width int = 100
+	// height int
+}
 
+fn main() {
+	test := Test{}
+	println('${test.width} ${test.height} ${test.Dimension.width}') // 100 -1 -1
+}
+```
 ## V Types
 
 ### Primitive types
@@ -685,6 +723,13 @@ println('[${int(x):X}]') // output as uppercase hex => [7B]
 
 println('[${10.0000:.2}]') // remove insignificant 0s at the end => [10]
 println('[${10.0000:.2f}]') // do show the 0s at the end, even though they do not change the number => [10.00]
+```
+
+V also has `r` and `R` switches, which will repeat the string the specified amount of times.
+
+```v
+println('[${'abc':3r}]') // [abcabcabc]
+println('[${'abc':3R}]') // [ABCABCABC]
 ```
 
 #### String operators
@@ -1421,6 +1466,36 @@ See all methods of
 and
 [maps](https://modules.vlang.io/maps.html).
 
+### Map update syntax
+
+As with structs, V lets you initialise a map with an update applied on top of
+another map:
+
+```v
+const base_map = {
+	'a': 4
+	'b': 5
+}
+
+foo := {
+	...base_map
+	'b': 88
+	'c': 99
+}
+
+println(foo) // {'a': 4, 'b': 88, 'c': 99}
+```
+
+This is functionally equivalent to cloning the map and updating it, except that
+you don't have to declare a mutable variable:
+
+```v failcompile
+// same as above (except mutable)
+mut foo := base_map.clone()
+foo['b'] = 88
+foo['c'] = 99
+```
+
 ## Module imports
 
 For information about creating a module, see [Modules](#modules).
@@ -1984,6 +2059,16 @@ for i in 0 .. 5 {
 
 `low..high` means an *exclusive* range, which represents all values
 from `low` up to *but not including* `high`.
+
+> [!NOTE]
+> This exclusive range notation and zero-based indexing follow principles of
+logical consistency and error reduction. As Edsger W. Dijkstra outlines in
+'Why Numbering Should Start at Zero'
+([EWD831](https://www.cs.utexas.edu/users/EWD/transcriptions/EWD08xx/EWD831.html)), 
+zero-based indexing aligns the index with the preceding elements in a sequence,
+simplifying handling and minimizing errors, especially with adjacent subsequences.
+This logical and efficient approach shapes our language design, emphasizing clarity
+and reducing confusion in programming.
 
 #### Condition `for`
 
@@ -2561,7 +2646,7 @@ struct Button {
 }
 ```
 
-With embedding, the struct `Button` will automatically have get all the fields and methods from
+With embedding, the struct `Button` will automatically get all the fields and methods from
 the struct `Size`, which allows you to do:
 
 ```v oksyntax
@@ -2589,7 +2674,7 @@ Button{
 ```
 
 Unlike inheritance, you cannot type cast between structs and embedded structs
-(the embedding struct can also has its own fields, and it can also embed multiple structs).
+(the embedding struct can also have its own fields, and it can also embed multiple structs).
 
 If you need to access embedded structs directly, use an explicit reference like `button.Size`.
 
@@ -2926,10 +3011,8 @@ To dereference a reference, use the `*` operator, just like in C.
 ## Constants
 
 ```v
-const (
-	pi    = 3.14
-	world = '世界'
-)
+const pi = 3.14
+const world = '世界'
 
 println(pi)
 println(world)
@@ -2961,16 +3044,14 @@ fn rgb(r int, g int, b int) Color {
 	}
 }
 
-const (
-	numbers = [1, 2, 3]
-	red     = Color{
-		r: 255
-		g: 0
-		b: 0
-	}
-	// evaluate function call at compile time*
-	blue = rgb(0, 0, 255)
-)
+const numbers = [1, 2, 3]
+const red = Color{
+	r: 255
+	g: 0
+	b: 0
+}
+// evaluate function call at compile time*
+const blue = rgb(0, 0, 255)
 
 println(numbers)
 println(red)
@@ -3187,6 +3268,19 @@ fn main() {
 * You can create modules anywhere.
 * All modules are compiled statically into a single executable.
 
+### Special considerations
+
+For the top level project folder (the one that is compiled with v .), and *only*
+that folder, you can have several .v files, that may be mentioning different modules
+with `module main`, `module abc` etc
+
+This is to ease the prototyping workflow in that folder:
+- you can start developing some new project with a single .v file
+- split functionality as necessary to different .v files in the same folder
+- when that makes logical sense to be further organised, put them into their own directory module.
+
+Note that in ordinary modules, all .v files must start with `module name_of_folder`.
+
 ### `init` functions
 
 If you want a module to automatically call some setup/initialization code when it is imported,
@@ -3310,6 +3404,31 @@ three
 one
 two
 three
+one
+```
+
+Enums can be created from string or integer value and converted into string
+
+```v
+enum Cycle {
+	one
+	two   = 2
+	three
+}
+
+// Create enum from value
+println(Cycle.from(10) or { Cycle.three })
+println(Cycle.from('two')!)
+
+// Convert an enum value to a string
+println(Cycle.one.str())
+```
+
+Output:
+
+```
+three
+two
 one
 ```
 
@@ -3474,7 +3593,7 @@ fn fn1(s Foo) {
 
 We can test the underlying type of an interface using dynamic cast operators.
 > [!NOTE]
-> Dynamic cast converts variable `s` into a pointer inside the `if` statemnts in this example:
+> Dynamic cast converts variable `s` into a pointer inside the `if` statements in this example:
 
 ```v oksyntax
 // interface-example.3 (continued from interface-example.1)
@@ -4069,8 +4188,8 @@ fn main() {
 > [!NOTE]
 > Threads rely on the machine's CPU (number of cores/threads).
 > Be aware that OS threads spawned with `spawn`
-> have limitations in regard to concurrency, 
-> including resource overhead and scalability issues, 
+> have limitations in regard to concurrency,
+> including resource overhead and scalability issues,
 > and might affect performance in cases of high thread count.
 
 There's also a `go` keyword. Right now `go foo()` will be automatically renamed via vfmt
@@ -4177,7 +4296,7 @@ Channels can be buffered or unbuffered and it is possible to `select` from multi
 
 #### Syntax and Usage
 
-Channels have the type `chan objtype`. An optional buffer length can specified as the `cap` field
+Channels have the type `chan objtype`. An optional buffer length can be specified as the `cap` field
 in the declaration:
 
 ```v
@@ -4824,7 +4943,7 @@ struct MyStruct {
 }
 
 fn main() {
-	m := MyStruct{}
+	mut m := MyStruct{}
 	mut r := RefStruct{
 		r: &m
 	}
@@ -4927,7 +5046,7 @@ fn use_stack() {
 }
 
 fn main() {
-	m := MyStruct{}
+	mut m := MyStruct{}
 	mut r := RefStruct{
 		r: &m
 	}
@@ -4981,10 +5100,10 @@ import db.sqlite
 // sets a custom table name. Default is struct name (case-sensitive)
 @[table: 'customers']
 struct Customer {
-	id        int    @[primary; sql: serial] // a field named `id` of integer type must be the first field
-	name      string @[nonull]
+	id        int     @[primary; sql: serial] // a field named `id` of integer type must be the first field
+	name      string
 	nr_orders int
-	country   string @[nonull]
+	country   ?string
 }
 
 db := sqlite.connect('customers.db')!
@@ -4993,8 +5112,8 @@ db := sqlite.connect('customers.db')!
 // CREATE TABLE IF NOT EXISTS `Customer` (
 //      `id` INTEGER PRIMARY KEY,
 //      `name` TEXT NOT NULL,
-//      `nr_orders` INTEGER,
-//      `country` TEXT NOT NULL
+//      `nr_orders` INTEGER NOT NULL,
+//      `country` TEXT
 // )
 sql db {
 	create table Customer
@@ -5019,6 +5138,15 @@ sql db {
 	insert us_customer into Customer
 }!
 
+none_country_customer := Customer{
+	name: 'Dennis'
+	country: none
+	nr_orders: 2
+}
+sql db {
+	insert none_country_customer into Customer
+}!
+
 // update a customer:
 sql db {
 	update Customer set nr_orders = nr_orders + 1 where name == 'Bob'
@@ -5034,9 +5162,17 @@ println('number of all customers: ${nr_customers}')
 uk_customers := sql db {
 	select from Customer where country == 'uk' && nr_orders > 0
 }!
-println('We found a total of ${uk_customers.len} customers, that match the query.')
-for customer in uk_customers {
-	println('customer: ${customer.id}, ${customer.name}, ${customer.country}, ${customer.nr_orders}')
+println('We found a total of ${uk_customers.len} customers matching the query.')
+for c in uk_customers {
+	println('customer: ${c.id}, ${c.name}, ${c.country}, ${c.nr_orders}')
+}
+
+none_country_customers := sql db {
+	select from Customer where country is none
+}!
+println('We found a total of ${none_country_customers.len} customers, with no country set.')
+for c in none_country_customers {
+	println('customer: ${c.id}, ${c.name}, ${c.country}, ${c.nr_orders}')
 }
 
 // delete a customer
@@ -5539,7 +5675,7 @@ that are substituted at compile time:
   where the V executable is (as a string).
 - `@VHASH`  => replaced with the shortened commit hash of the V compiler (as a string).
 - `@VCURRENTHASH` => Similar to `@VHASH`, but changes when the compiler is
-  recompiled on a different commit (after local modifications, or after 
+  recompiled on a different commit (after local modifications, or after
   using git bisect etc).
 - `@VMOD_FILE` => replaced with the contents of the nearest v.mod file (as a string).
 - `@VMODROOT` => will be substituted with the *folder*,
@@ -5578,6 +5714,11 @@ print($embed_file(@FILE).to_string())
 Having built-in JSON support is nice, but V also allows you to create efficient
 serializers for any data format. V has compile time `if` and `for` constructs:
 
+#### <h4 id="comptime-fields">.fields</h4>
+
+You can iterate over struct fields using `.fields`, it also works with generic types
+(e.g. `T.fields`) and generic arguments (e.g. `param.fields` where `fn gen[T](param T) {`).
+
 ```v
 struct User {
 	name string
@@ -5594,6 +5735,112 @@ fn main() {
 
 // Output:
 // name is of type string
+```
+
+#### <h4 id="comptime-values">.values</h4>
+
+You can read [Enum](#enums) values and their attributes.
+
+```V
+enum Color {
+	red @[RED] // first attribute
+	blue @[BLUE] // second attribute
+}
+
+fn main() {
+	$for e in Color.values {
+		println(e.name)
+		println(e.attrs)
+	}
+}
+
+// Output:
+// red
+// ['RED']
+// blue
+// ['BLUE']
+```
+
+#### <h4 id="comptime-attrs">.attributes</h4>
+
+You can read [Struct](#structs) attributes.
+
+```V
+@[COLOR]
+struct Foo {
+	a int
+}
+
+fn main() {
+	$for e in Foo.attributes {
+		println(e)
+	}
+}
+
+// Output:
+// StructAttribute{
+//    name: 'COLOR'
+//    has_arg: false
+//    arg: ''
+//    kind: plain
+// }
+```
+
+#### <h4 id="comptime-variants">.variants</h4>
+
+You can read variant types from [Sum type](#sum-types).
+
+```V
+type MySum = int | string
+
+fn main() {
+	$for v in MySum.variants {
+		$if v.typ is int {
+			println('has int type')
+		} $else $if v.typ is string {
+			println('has string type')
+		}
+	}
+}
+
+// Output:
+// has int type
+// has string type
+```
+
+#### <h4 id="comptime-methods">.methods</h4>
+
+You can retrieve information about struct methods.
+
+```V
+struct Foo {
+}
+
+fn (f Foo) test() int {
+	return 123
+}
+
+fn (f Foo) test2() string {
+	return 'foo'
+}
+
+
+fn main() {
+	foo := Foo{}
+	$for m in Foo.methods {
+		$if m.return_type is int {
+			print('${m.name} returns int: ')
+			println(foo.$method())
+		} $else $if m.return_type is string {
+			print('${m.name} returns string: ')
+			println(foo.$method())
+		}
+	}
+}
+
+// Output:
+// test returns int: 123
+// test2 returns string: foo
 ```
 
 See [`examples/compiletime/reflection.v`](/examples/compiletime/reflection.v)
@@ -5695,7 +5942,7 @@ fn main() {
 ```
 
 Note: compressing binary assets like png or zip files, usually will not gain you much,
-and in some cases may even take more space in the final executable, since they are 
+and in some cases may even take more space in the final executable, since they are
 already compressed.
 
 `$embed_file` returns
@@ -5815,6 +6062,7 @@ V supports the following compile time types:
 - `$option` => matches [Option Types](#optionresult-types-and-error-handling).
 - `$struct` => matches [Structs](#structs).
 - `$sumtype` => matches [Sum Types](#sum-types).
+- `$string` => matches [Strings](#strings).
 
 ### Environment specific files
 
@@ -5843,21 +6091,21 @@ main_default.c.v:
 
 ```v ignore
 module main
-const ( message = 'Hello world' )
+const message = 'Hello world'
 ```
 
 main_linux.c.v:
 
 ```v ignore
 module main
-const ( message = 'Hello linux' )
+const message = 'Hello linux'
 ```
 
 main_windows.c.v:
 
 ```v ignore
 module main
-const ( message = 'Hello windows' )
+const message = 'Hello windows'
 ```
 
 With the example above:
@@ -5882,6 +6130,207 @@ With the example above:
   *only* if you do NOT pass `-d customflag` to V.
 
 See also [Cross Compilation](#cross-compilation).
+
+## Debugger
+
+To use the native *V debugger*, add the `$dbg` statement to your source, where you 
+want the debugger to be invoked.
+
+```V
+fn main() {
+	a := 1
+	$dbg
+}
+```
+
+Running this V code, you will get the debugger REPL break when the execution 
+reaches the `$dbg` statement.
+
+```
+$ v run example.v
+Break on [main] main in example.v:3
+example.v:3 vdbg> 
+```
+
+At this point, execution is halted, and the debugger is now available.
+
+To see the available commands, type 
+?, h or help. (Completion for commands works - Non-Windows only)
+
+```
+example.v:3 vdbg> ?
+vdbg commands:
+  anon?                 check if the current context is anon
+  bt                    prints a backtrace
+  c, continue           continue debugging
+  generic?              check if the current context is generic
+  heap                  show heap memory usage
+  h, help, ?            show this help
+  l, list [lines]       show some lines from current break (default: 3)
+  mem, memory           show memory usage
+  method?               check if the current context is a method
+  m, mod                show current module name
+  p, print <var>        prints an variable
+  q, quit               exits debugging session in the code
+  scope                 show the vars in the current scope
+  u, unwatch <var>      unwatches a variable
+  w, watch <var>        watches a variable
+```
+
+Lets try the `scope` command, to inspect the current scope context.
+
+```
+example.v:3 vdbg> scope
+a = 1 (int)
+```
+
+Cool! We have the variable name, its value and its type name.
+
+What about printing only a variable, not the whole scope?
+
+Just type `p a`.
+
+To watch a variable by its name, use:
+
+`w a` (where `a` is the variable name)
+
+To stop watching the variable (`unwatch` it), use `u a`.
+
+Lets see more one example:
+
+```
+fn main() {
+	for i := 0; i < 4; i++ {
+		$dbg
+	}
+}
+```
+
+Running again, we'll get:
+`Break on [main] main in example.v:3`
+
+If we want to read the source code context, we can use the `l` or `list` command.
+
+```
+example.v:3 vdbg> l
+0001  fn main() {
+0002    for i := 0; i < 4; i++ {
+0003>           $dbg
+0004    }
+0005  }
+```
+
+The default is read 3 lines before and 3 lines after, but you can 
+pass a parameter to the command to read more lines, like `l 5`.
+
+Now, lets watch the variable changing on this loop.
+
+```
+example.v:3 vdbg> w i
+i = 0 (int)
+```
+
+To continue to the next breakpoint, type `c` or `continue` command.
+
+```
+example.v:3 vdbg> c
+Break on [main] main in example.v:3
+i = 1 (int)
+```
+
+`i` and it's value is automatically printed, because it is in the watch list.
+
+To repeat the last command issued, in this case the `c` command, 
+just hit the *enter* key.
+
+```
+example.v:3 vdbg> 
+Break on [main] main in example.v:3
+i = 2 (int)
+example.v:3 vdbg> 
+Break on [main] main in example.v:3
+i = 3 (int)
+example.v:3 vdbg>
+```
+
+You can also see memory usage with `mem` or `memory` command, and
+check if the current context is an anon function (`anon?`), a method (`method?`) 
+or a generic method (`generic?`) and clear the terminal window (`clear`).
+
+## Call stack
+
+You can also show the current call stack with `v.debug`.
+
+To enable this feature, add the `-d callstack` switch when building or running
+your code:
+
+```v
+import v.debug
+
+fn test(i int) {
+	if i > 9 {
+		debug.dump_callstack()
+	}
+}
+
+fn do_something() {
+	for i := 0; i <= 10; i++ {
+		test(i)
+	}
+}
+
+fn main() {
+	do_something()
+}
+```
+
+```
+$ v -d callstack run example.v
+Backtrace:
+--------------------------------------------------
+example.v:16   | > main.main
+example.v:11   |  > main.do_something
+example.v:5    |   > main.test
+--------------------------------------------------
+```
+
+## Trace
+
+Another feature of `v.debug` is the possibility to add hook functions 
+before and after each function call.
+
+To enable this feature, add the `-d trace` switch when building or running
+your code:
+
+```v
+import v.debug
+
+fn main() {
+	hook1 := debug.add_before_call(fn (fn_name string) {
+		println('> before ${fn_name}')
+	})
+	hook2 := debug.add_after_call(fn (fn_name string) {
+		println('> after ${fn_name}')
+	})
+	anon := fn () {
+		println('call')
+	}
+	anon()
+
+	// optionally you can remove the hooks:
+	debug.remove_before_call(hook1)
+	debug.remove_after_call(hook2)
+	anon()
+}
+```
+
+```
+$ v -d trace run example.v
+> before anon
+call
+> after anon
+call
+```
 
 ## Memory-unsafe code
 
@@ -6042,6 +6491,8 @@ To improve safety and maintainability, operator overloading is limited.
 
 - When overriding `<` and `==`, the return type must be strictly `bool`.
 - Both arguments must have the same type (just like with all operators in V).
+- Overloaded operators have to return the same type as the argument
+  (the exceptions are `<` and `==`).
 
 #### Other restrictions
 
@@ -6107,7 +6558,7 @@ sure that the access index will be valid.
 
 #### `[packed]`
 
-The `[packed]` attribute can be added to a structure to create an unaligned memory layout,
+The `@[packed]` attribute can be applied to a structure to create an unaligned memory layout,
 which decreases the overall memory footprint of the structure. Using the `[packed]` attribute
 may negatively impact performance or even be prohibited on certain CPU architectures.
 
@@ -6119,6 +6570,45 @@ may negatively impact performance or even be prohibited on certain CPU architect
 
 - On CPU architectures that do not support unaligned memory access or when high-speed memory access
 is needed.
+
+#### `[aligned]`
+
+The `@[aligned]` attribute can be applied to a structure or union to specify a minimum alignment
+(in bytes) for variables of that type. Using the `@[aligned]` attribute you can only *increase*
+the default alignment. Use `@[packed]` if you want to *decrease* it. The alignment of any struct
+or union, should be at least a perfect multiple of the lowest common multiple of the alignments of
+all of the members of the struct or union.
+
+Example:
+```v
+// Each u16 in the `data` field below, takes 2 bytes, and we have 3 of them = 6 bytes.
+// The smallest power of 2, bigger than 6 is 8, i.e. with `@[aligned]`, the alignment
+// for the entire struct U16s, will be 8:
+@[aligned]
+struct U16s {
+	data [3]u16
+}
+```
+**When to Use**
+
+- Only if the instances of your types, will be used in performance critical sections, or with
+specialised machine instructions, that do require a specific alignment to work.
+
+**When to Avoid**
+
+- On CPU architectures, that do not support unaligned memory access. If you are not working on
+performance critical algorithms, you do not really need it, since the proper minimum alignment
+is CPU specific, and the compiler already usually will choose a good default for you.
+
+> [!NOTE]
+> You can leave out the alignment factor, i.e. use just `@[aligned]`, in which case the compiler
+> will align a type to the maximum useful alignment for the target machine you are compiling for,
+> i.e. the alignment will be the largest alignment which is ever used for any data type on the
+> target machine. Doing this can often make copy operations more efficient, because the compiler
+> can choose whatever instructions copy the biggest chunks of memory, when performing copies to or
+> from the variables which have types that you have aligned this way.
+
+See also ["What Every Programmer Should Know About Memory", by Ulrich Drepper](https://people.freebsd.org/~lstewart/articles/cpumemory.pdf) .
 
 #### `[minify]`
 
@@ -6724,7 +7214,7 @@ To cast a `voidptr` to a V reference, use `user := &User(user_void_ptr)`.
 
 `voidptr` can also be dereferenced into a V struct through casting: `user := User(user_void_ptr)`.
 
-[an example of a module that calls C code from V](https://github.com/vlang/v/blob/master/vlib/v/tests/project_with_c_code/mod1/wrapper.v)
+[an example of a module that calls C code from V](https://github.com/vlang/v/blob/master/vlib/v/tests/project_with_c_code/mod1/wrapper.c.v)
 
 ### C Declarations
 
@@ -6930,13 +7420,28 @@ Make sure that in command you use a path to a V's file,
 in that case you need to modify content of a folder (add new file, for example),
 because changes in *message.v* will have no effect.
 
-Functions that you want to be reloaded must have `[live]` attribute
+Functions that you want to be reloaded must have `@[live]` attribute
 before their definition.
 
 Right now it's not possible to modify types while the program is running.
 
 More examples, including a graphical application:
 [github.com/vlang/v/tree/master/examples/hot_reload](https://github.com/vlang/v/tree/master/examples/hot_reload).
+
+#### About keeping states in hot reloading functions with v -live run
+V's hot code reloading relies on marking the functions that you want to reload with `@[live]`,
+then compiling a shared library of these `@[live]` functions, and then
+your v program loads that shared library at runtime.
+
+V (with the -live option) starts a new thread, that monitors the source files for changes,
+and when it detects modifications, it recompiles the shared library, and reloads it at runtime,
+so that new calls to those @[live] functions will be made to the newly loaded library.
+
+It keeps all the accumulated state (from locals outside the @[live] functions,
+from heap variables and from globals), allowing to tweak the code in the merged functions quickly.
+
+When there are more substantial changes (to data structures, or to functions that were not marked),
+you will have to restart the running app manually.
 
 ### Cross-platform shell scripts in V
 

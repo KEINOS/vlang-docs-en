@@ -4,7 +4,7 @@ This repository is a __clone of only the `doc` directory__ of the [original V's 
 
 - Currently tracking files:
   - [./docs.md](docs.md)
-  - [./upcomming.md](upcomming.md)
+  - [./upcoming.md](upcoming.md)
   - [./vscode.md](vscode.md)
   - [./LICENSE.md](LICENSE.md)
   - [./img/vscode-debugger.png](img)

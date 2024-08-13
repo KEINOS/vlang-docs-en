@@ -1600,9 +1600,9 @@ fn (mut t MyTime) century() int {
 
 fn main() {
 	mut my_time := MyTime{
-		year: 2020
+		year:  2020
 		month: 12
-		day: 25
+		day:   25
 	}
 	println(time.new(my_time).utc_string())
 	println('Century: ${my_time.century()}')
@@ -2436,7 +2436,7 @@ fn register(u User) User {
 
 mut user := User{
 	name: 'abc'
-	age: 23
+	age:  23
 }
 user = register(user)
 println(user)
@@ -2464,9 +2464,9 @@ struct Button {
 
 fn new_button(c ButtonConfig) &Button {
 	return &Button{
-		width: c.width
+		width:  c.width
 		height: c.height
-		text: c.text
+		text:   c.text
 	}
 }
 
@@ -2535,7 +2535,7 @@ struct Book {
 book := Book{
 	author: struct {
 		name: 'Samantha Black'
-		age: 24
+		age:  24
 	}
 }
 assert book.author.name == 'Samantha Black'
@@ -2666,7 +2666,7 @@ the struct `Size`, which allows you to do:
 
 ```v oksyntax
 mut button := Button{
-	title: 'Click me'
+	title:  'Click me'
 	height: 2
 }
 
@@ -2701,7 +2701,7 @@ You can also initialize an embedded struct:
 ```v oksyntax
 mut button := Button{
 	Size: Size{
-		width: 3
+		width:  3
 		height: 2
 	}
 }
@@ -2711,7 +2711,7 @@ or assign values:
 
 ```v oksyntax
 button.Size = Size{
-	width: 4
+	width:  4
 	height: 5
 }
 ```
@@ -3443,7 +3443,7 @@ Enums can be created from string or integer value and converted into string
 ```v
 enum Cycle {
 	one
-	two   = 2
+	two = 2
 	three
 }
 
@@ -4588,7 +4588,7 @@ struct User {
 
 mut data := map[string]int{}
 user := &User{
-	name: 'Pierre'
+	name:  'Pierre'
 	score: 1024
 }
 
@@ -5136,7 +5136,7 @@ import db.sqlite
 // sets a custom table name. Default is struct name (case-sensitive)
 @[table: 'customers']
 struct Customer {
-	id        int     @[primary; sql: serial] // a field named `id` of integer type must be the first field
+	id        int @[primary; sql: serial] // a field named `id` of integer type must be the first field
 	name      string
 	nr_orders int
 	country   ?string
@@ -5157,8 +5157,8 @@ sql db {
 
 // insert a new customer:
 new_customer := Customer{
-	name: 'Bob'
-	country: 'uk'
+	name:      'Bob'
+	country:   'uk'
 	nr_orders: 10
 }
 sql db {
@@ -5166,8 +5166,8 @@ sql db {
 }!
 
 us_customer := Customer{
-	name: 'Martin'
-	country: 'us'
+	name:      'Martin'
+	country:   'us'
 	nr_orders: 5
 }
 sql db {
@@ -5175,8 +5175,8 @@ sql db {
 }!
 
 none_country_customer := Customer{
-	name: 'Dennis'
-	country: none
+	name:      'Dennis'
+	country:   none
 	nr_orders: 2
 }
 sql db {
@@ -5852,7 +5852,7 @@ You can read [Enum](#enums) values and their attributes.
 
 ```v
 enum Color {
-	red  @[RED] // first attribute
+	red   @[RED]  // first attribute
 	blue  @[BLUE] // second attribute
 }
 
@@ -6686,10 +6686,10 @@ performance, memory usage, or size.
 
 | Tuning Operation         | Benefits                        | Drawbacks                                         |
 |--------------------------|---------------------------------|---------------------------------------------------|
-| `[inline]`               | Performance                     | Increased executable size                         |
-| `[direct_array_access]`  | Performance                     | Safety risks                                      |
-| `[packed]`               | Memory usage                    | Potential performance loss                        |
-| `[minify]`               | Performance, Memory usage       | May break binary serialization/reflection         |
+| `@[inline]`               | Performance                     | Increased executable size                         |
+| `@[direct_array_access]`  | Performance                     | Safety risks                                      |
+| `@[packed]`               | Memory usage                    | Potential performance loss                        |
+| `@[minify]`               | Performance, Memory usage       | May break binary serialization/reflection         |
 | `_likely_/_unlikely_`    | Performance                     | Risk of negative performance impact               |
 | `-skip-unused`           | Performance, Compile time, Size | Potential instability                             |
 | `-fast-math`             | Performance                     | Risk of incorrect mathematical operations results |
@@ -6699,9 +6699,9 @@ performance, memory usage, or size.
 
 ### Tuning operations details
 
-#### `[inline]`
+#### `@[inline]`
 
-You can tag functions with `[inline]`, so the C compiler will try to inline them, which in some
+You can tag functions with `@[inline]`, so the C compiler will try to inline them, which in some
 cases, may be beneficial for performance, but may impact the size of your executable.
 
 **When to Use**
@@ -6713,9 +6713,9 @@ cases, may be beneficial for performance, but may impact the size of your execut
 - Large functions, as it might cause code bloat and actually decrease performance.
 - Large functions in `if` expressions - may have negative impact on instructions cache.
 
-#### `[direct_array_access]`
+#### `@[direct_array_access]`
 
-In functions tagged with `[direct_array_access]` the compiler will translate array operations
+In functions tagged with `@[direct_array_access]` the compiler will translate array operations
 directly into C array operations - omitting bounds checking. This may save a lot of time in a
 function that iterates over an array but at the cost of making the function unsafe - unless the
 boundaries will be checked by the user.
@@ -6729,10 +6729,10 @@ sure that the access index will be valid.
 
 - Everywhere else.
 
-#### `[packed]`
+#### `@[packed]`
 
 The `@[packed]` attribute can be applied to a structure to create an unaligned memory layout,
-which decreases the overall memory footprint of the structure. Using the `[packed]` attribute
+which decreases the overall memory footprint of the structure. Using the `@[packed]` attribute
 may negatively impact performance or even be prohibited on certain CPU architectures.
 
 **When to Use**
@@ -6744,7 +6744,7 @@ may negatively impact performance or even be prohibited on certain CPU architect
 - On CPU architectures that do not support unaligned memory access or when high-speed memory access
 is needed.
 
-#### `[aligned]`
+#### `@[aligned]`
 
 The `@[aligned]` attribute can be applied to a structure or union to specify a minimum alignment
 (in bytes) for variables of that type. Using the `@[aligned]` attribute you can only *increase*
@@ -6783,10 +6783,10 @@ is CPU specific, and the compiler already usually will choose a good default for
 
 See also ["What Every Programmer Should Know About Memory", by Ulrich Drepper](https://people.freebsd.org/~lstewart/articles/cpumemory.pdf) .
 
-#### `[minify]`
+#### `@[minify]`
 
-The `[minify]` attribute can be added to a struct, allowing the compiler to reorder the fields in
-a way that minimizes internal gaps while maintaining alignment. Using the `[minify]` attribute may
+The `@[minify]` attribute can be added to a struct, allowing the compiler to reorder the fields in
+a way that minimizes internal gaps while maintaining alignment. Using the `@[minify]` attribute may
 cause issues with binary serialization or reflection. Be mindful of these potential side effects
 when using this attribute.
 
@@ -7172,6 +7172,104 @@ For all supported options check the latest help:
 ## V and C
 
 ### Calling C from V
+
+V currently does not have a parser for C code. That means that even
+though it allows you to `#include` existing C header and source files,
+it will not know anything about the declarations in them. The `#include`
+statement will only appear in the generated C code, to be used by the
+C compiler backend itself.
+
+**Example of #include**
+```v oksyntax
+#include <stdio.h>
+```
+After this statement, V will *not* know anything about the functions and
+structs declared in `stdio.h`, but if you try to compile the .v file,
+it will add the include in the generated C code, so that if that header file
+is missing, you will get a C error (you will not in this specific case, if you
+have a proper C compiler setup, since `<stdio.h>` is part of the
+standard C library).
+
+To overcome that limitation (that V does not have a C parser), V needs you to
+redeclare the C functions and structs, on the V side, in your `.c.v` files.
+Note that such redeclarations only need to have enough details about the
+functions/structs that you want to use.
+Note also that they *do not have* to be complete, unlike the ones in the .h files.
+
+
+**C. struct redeclarations**
+For example, if a struct has 3 fields on the C side, but you want to only
+refer to 1 of them, you can declare it like this:
+
+**Example of C struct redeclaration**
+```v oksyntax
+struct C.NameOfTheStruct {
+	a_field int
+}
+```
+Another feature, that is very frequently needed for C interoperability,
+is the `@[typedef]` attribute. It is used for marking `C.` structs,
+that are defined with `typedef struct SomeName { ..... } TypeName;` in the C headers.
+
+For that case, you will have to write something like this in your .c.v file:
+```v oksyntax
+@[typedef]
+pub struct C.TypeName {
+}
+```
+Note that the name of the `C.` struct in V, is the one *after* the `struct SomeName {...}`.
+
+**C. function redeclarations**
+The situation is similar for `C.` functions. If you are going to call just 1 function in a
+library, but its .h header declares dozens of them, you will only need to declare that single
+function, for example:
+
+**Example of C function redeclaration**
+```v oksyntax
+fn C.name_of_the_C_function(param1 int, const_param2 &char, param3 f32) f64
+```
+... and then later, you will be able to call the same way you would V function:
+```v oksyntax
+f := C.name_of_the_C_function(123, c'here is some C style string', 1.23)
+dump(f)
+```
+
+**Example of using a C function from stdio, by redeclaring it on the V side**
+```v
+#include <stdio.h>
+
+// int dprintf(int fd, const char *format, ...)
+fn C.dprintf(fd int, const_format &char, ...voidptr) int
+
+value := 12345
+x := C.dprintf(0, c'Hello world, value: %d\n', value)
+dump(x)
+```
+
+If your C backend compiler is properly setup, you should see something like this, when you try
+to run it:
+```console
+#0 10:42:32 /v/examples> v run a.v
+Hello world, value: 12345
+[a.v:8] x: 26
+#0 10:42:33 /v/examples>
+```
+
+Note, that the C function redeclarations look very simillar to the V ones, with some differences:
+1) They lack a body (they are defined on the C side) .
+2) Their names start with `C.` .
+3) Their names can have capital letters (unlike V ones, that are required to use snake_case) .
+
+Note also the second parameter `const char *format`, which was redeclared as `const_format &char` .
+The `const_` prefix in that redeclaration may seem arbitrary, but it is important, if you want
+to compile your code with `-cstrict` or thirdparty C static analysis tools. V currently does not
+have another way to express that this parameter is a const (this will probably change in V 1.0).
+
+For some C functions, that use variadics (`...`) as parameters, V supports a special syntax for
+the parameters - `...voidptr`, that is not available for ordinary V functions (V's variadics are
+*required* to have the same exact type). Usually those are functions of the printf/scanf family
+i.e for `printf`, `fprintf`, `scanf`, `sscanf`, etc, and other formatting/parsing/logging
+functions.
 
 **Example**
 

@@ -6,6 +6,7 @@ This repository is a __clone of only the `doc` directory__ of the [original V's 
   - [./docs.md](docs.md)
   - [./upcoming.md](upcoming.md)
   - [./vscode.md](vscode.md)
+  - [./packaging_v_for_distributions.md](packaging_v_for_distributions.md)
   - [./LICENSE.md](LICENSE.md)
   - [./img/vscode-debugger.png](img)
 

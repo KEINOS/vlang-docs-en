@@ -683,7 +683,9 @@ To use a format specifier, follow this pattern:
   > doesn't need `+` to right-align since that's the default.
 - width: may be an integer value describing the minimum width of total field to output.
 - precision: an integer value preceded by a `.` will guarantee that many digits after the decimal
-  point, if the input variable is a float. Ignored if variable is an integer.
+  point without any insignificant trailing zeros. If displaying insignificant zero's is desired,
+  append a `f` specifier to the precision value (see examples below). Applies only to float 
+  variables and is ignored for integer variables.
 - type: `f` and `F` specify the input is a float and should be rendered as such, `e` and `E` specify
   the input is a float and should be rendered as an exponent (partially broken), `g` and `G` specify
   the input is a float--the renderer will use floating point notation for small values and exponent
@@ -3723,7 +3725,7 @@ struct Dog {}
 fn main() {
 	cat := Cat{}
 	assert dump(cat.speak()) == 'meow!'
-	//
+
 	a := Adoptable(cat)
 	assert dump(a.speak()) == 'adopt me!' // call Adoptable's `speak`
 	if a is Cat {
@@ -3732,7 +3734,7 @@ fn main() {
 		// Cat `speak`, NOT the Adoptable `speak`:
 		dump(a.speak()) // meow!
 	}
-	//
+
 	b := Adoptable(Dog{})
 	assert dump(b.speak()) == 'adopt me!' // call Adoptable's `speak`
 	// if b is Dog {
@@ -7328,7 +7330,7 @@ fn main() {
 	nr_users := C.sqlite3_column_int(stmt, 0)
 	C.sqlite3_finalize(stmt)
 	println('There are ${nr_users} users in the database.')
-	//
+
 	error_msg := &char(0)
 	query_all_users := 'select * from users'
 	rc := C.sqlite3_exec(db, &char(query_all_users.str), my_callback, voidptr(7), &error_msg)

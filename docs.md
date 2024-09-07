@@ -4851,7 +4851,7 @@ Just as the compiler frees C data types with C's `free()`, it will statically in
 Autofree can be enabled with an `-autofree` flag.
 
 For developers willing to have more low level control, autofree can be disabled with
-`-manualfree`, or by adding a `[manualfree]` on each function that wants manage its
+`-manualfree`, or by adding a `[manualfree]` on each function that wants to manage its
 memory manually. (See [attributes](#attributes)).
 
 > [!NOTE]
@@ -4963,7 +4963,7 @@ Here `a` is stored on the stack since its address never leaves the function `f()
 However a reference to `b` is part of `e` which is returned. Also a reference to
 `c` is returned. For this reason `b` and `c` will be heap allocated.
 
-Things become less obvious when a reference to an object is passed as function argument:
+Things become less obvious when a reference to an object is passed as a function argument:
 
 ```v
 struct MyStruct {
@@ -6725,15 +6725,16 @@ performance, memory usage, or size.
 
 | Tuning Operation         | Benefits                        | Drawbacks                                         |
 |--------------------------|---------------------------------|---------------------------------------------------|
-| `@[inline]`               | Performance                     | Increased executable size                         |
-| `@[direct_array_access]`  | Performance                     | Safety risks                                      |
-| `@[packed]`               | Memory usage                    | Potential performance loss                        |
-| `@[minify]`               | Performance, Memory usage       | May break binary serialization/reflection         |
+| `@[inline]`              | Performance                     | Increased executable size                         |
+| `@[direct_array_access]` | Performance                     | Safety risks                                      |
+| `@[packed]`              | Memory usage                    | Potential performance loss                        |
+| `@[minify]`              | Performance, Memory usage       | May break binary serialization/reflection         |
 | `_likely_/_unlikely_`    | Performance                     | Risk of negative performance impact               |
 | `-skip-unused`           | Performance, Compile time, Size | Potential instability                             |
 | `-fast-math`             | Performance                     | Risk of incorrect mathematical operations results |
 | `-d no_segfault_handler` | Compile time, Size              | Loss of segfault trace                            |
 | `-cflags -march=native`  | Performance                     | Risk of reduced CPU compatibility                 |
+| `-compress`              | Size                            | Harder to debug, extra dependency `upx`           |
 | `PGO`                    | Performance, Size               | Usage complexity                                  |
 
 ### Tuning operations details
@@ -6919,6 +6920,28 @@ with identical hardware.
 **When to Avoid**
 
 - When distributing the software to users with potentially older CPUs.
+
+#### `-compress`
+
+This flag executes `upx` to compress the resultant executable, reducing its size by around 50%-70%.
+The executable will be uncompressed at runtime, so it will take a bit more time to start.
+It will also take extra RAM initially, as the compressed version of the app will be loaded into
+memory, and then expanded to another chunk of memory.
+Debugging such an application can be a bit harder, if you do not account for it.
+Some antivirus programs also use heuristics, that trigger more often for compressed applications.
+
+**When to Use**
+
+- For really tiny environments, where the size of the executable on the file system,
+or when deploying is important (docker containers, rescue disks etc).
+
+**When to Avoid**
+
+- When you need to debug the application
+- When the app's startup time is extremely important (where 1-2ms can be meaningful for you)
+- When you can not afford to allocate more memory during application startup
+- When you are deploying an app to users with antivirus software that could misidentify your
+app as malicious, just because it decompresses its code at runtime.
 
 #### PGO (Profile-Guided Optimization)
 

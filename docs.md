@@ -687,7 +687,7 @@ To use a format specifier, follow this pattern:
 - width: may be an integer value describing the minimum width of total field to output.
 - precision: an integer value preceded by a `.` will guarantee that many digits after the decimal
   point without any insignificant trailing zeros. If displaying insignificant zero's is desired,
-  append a `f` specifier to the precision value (see examples below). Applies only to float 
+  append a `f` specifier to the precision value (see examples below). Applies only to float
   variables and is ignored for integer variables.
 - type: `f` and `F` specify the input is a float and should be rendered as such, `e` and `E` specify
   the input is a float and should be rendered as an exponent (partially broken), `g` and `G` specify
@@ -3112,7 +3112,7 @@ module mymodule
 pub const golden_ratio = 1.61803
 
 fn calc() {
-	println(mymodule.golden_ratio)
+	println(golden_ratio)
 }
 ```
 
@@ -3598,7 +3598,6 @@ fn main() {
 #### Implement an interface
 
 A type implements an interface by implementing its methods and fields.
-There is no explicit declaration of intent, no "implements" keyword.
 
 An interface can have a `mut:` section. Implementing types will need
 to have a `mut` receiver, for methods declared in the `mut:` section
@@ -3643,6 +3642,30 @@ fn fn1(s Foo) {
 // fn fn2(s Bar) { // does not match
 //      println(s.write('Foo'))
 // }
+```
+
+There is an **optional** `implements` keyword for explicit declaration
+of intent, which applies to `struct` declarations.
+
+```v
+struct PathError implements IError {
+	Error
+	path string
+}
+
+fn (err PathError) msg() string {
+	return 'Failed to open path: ${err.path}'
+}
+
+fn try_open(path string) ! {
+	return PathError{
+		path: path
+	}
+}
+
+fn main() {
+	try_open('/tmp') or { panic(err) }
+}
 ```
 
 #### Casting an interface
@@ -4040,7 +4063,7 @@ user := repo.find_user_by_id(7) or {
 
 #### Options/results when returning multiple values
 
-Only one `Option` or `Result` is allowed to be returned from a function. It is 
+Only one `Option` or `Result` is allowed to be returned from a function. It is
 possible to return multiple values and still signal an error.
 
 ```v
@@ -5828,8 +5851,19 @@ that are substituted at compile time:
   next to the nearest v.mod file (as a string).
 - `@VMODROOT` => will be substituted with the *folder*,
   where the nearest v.mod file is (as a string).
+- `@BUILD_DATE` => replaced with the build date, for example '2024-09-13' .
+- `@BUILD_TIME` => replaced with the build time, for example '12:32:07' .
+- `@BUILD_TIMESTAMP` => replaced with the build timestamp, for example '1726219885' .
+Note: `@BUILD_DATE`, `@BUILD_TIME`, `@BUILD_TIMESTAMP` represent times in the UTC timezone.
+By default, they are based on the current time of the compilation/build. They can be overriden
+by setting the environment variable `SOURCE_DATE_EPOCH`. That is also useful while making
+releases, since you can use the equivalent of this in your build system/script:
+`export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) ;` , and then use `@BUILD_DATE` etc.,
+inside your program, when you for example print your version information to users.
+See also https://reproducible-builds.org/docs/source-date-epoch/ .
 
-That allows you to do the following example, useful while debugging/logging/tracing your code:
+The compile time pseudo variables allow you to do the following
+example, which is useful while debugging/logging/tracing your code:
 
 ```v
 eprintln(@LOCATION)
@@ -5846,6 +5880,13 @@ eprintln('${vm.name} ${vm.version}\n ${vm.description}')
 A program that prints its own source code (a quine):
 ```v
 print($embed_file(@FILE).to_string())
+```
+
+A program that prints the time when it was built:
+```v
+import time
+
+println('This program, was compiled at ${time.unix(@BUILD_TIMESTAMP.i64()).format_ss_milli()} .')
 ```
 
 > [!NOTE]

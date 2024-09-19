@@ -5632,6 +5632,40 @@ fn main() {
 }
 ```
 
+```v
+// @[_allow_multiple_values] allows an enum to have multiple duplicate values.
+// Use it carefully, only when you really need it.
+
+@[_allow_multiple_values]
+enum ButtonStyle {
+	primary   = 1
+	secondary = 2
+	success   = 3
+
+	blurple = 1
+	grey    = 2
+	gray    = 2
+	green   = 3
+}
+
+fn main() {
+	assert int(ButtonStyle.primary) == 1
+	assert int(ButtonStyle.blurple) == 1
+
+	assert int(ButtonStyle.secondary) == 2
+	assert int(ButtonStyle.gray) == 2
+	assert int(ButtonStyle.grey) == 2
+
+	assert int(ButtonStyle.success) == 3
+	assert int(ButtonStyle.green) == 3
+
+	assert ButtonStyle.primary == ButtonStyle.blurple
+	assert ButtonStyle.secondary == ButtonStyle.grey
+	assert ButtonStyle.secondary == ButtonStyle.gray
+	assert ButtonStyle.success == ButtonStyle.green
+}
+```
+
 Struct field deprecations:
 
 ```v oksyntax
@@ -6031,6 +6065,30 @@ fn main() {
 // test2 returns string: foo
 ```
 
+#### <h4 id="comptime-method-params">.params</h4>
+
+You can retrieve information about struct method params.
+
+```v
+struct Test {
+}
+
+fn (t Test) foo(arg1 int, arg2 string) {
+}
+
+fn main() {
+	$for m in Test.methods {
+		$for param in m.params {
+			println('${typeof(param.typ).name}: ${param.name}')
+		}
+	}
+}
+
+// Output:
+// int: arg1
+// string: arg2
+```
+
 See [`examples/compiletime/reflection.v`](/examples/compiletime/reflection.v)
 for a more complete example.
 
@@ -6333,28 +6391,29 @@ If a file has an environment-specific suffix, it will only be compiled for that 
   and `file_default.c.v` will be ignored.
 
 Here is a more complete example:
-main.v:
+
+`main.v`:
 
 ```v ignore
 module main
 fn main() { println(message) }
 ```
 
-main_default.c.v:
+`main_default.c.v`:
 
 ```v ignore
 module main
 const message = 'Hello world'
 ```
 
-main_linux.c.v:
+`main_linux.c.v`:
 
 ```v ignore
 module main
 const message = 'Hello linux'
 ```
 
-main_windows.c.v:
+`main_windows.c.v`:
 
 ```v ignore
 module main
@@ -6363,10 +6422,10 @@ const message = 'Hello windows'
 
 With the example above:
 
-- when you compile for windows, you will get 'Hello windows'
-- when you compile for linux, you will get 'Hello linux'
+- when you compile for Windows, you will get `Hello windows`
+- when you compile for Linux, you will get `Hello linux`
 - when you compile for any other platform, you will get the
-  non specific 'Hello world' message.
+  non specific `Hello world` message.
 
 - `_d_customflag.v` => will be used *only* if you pass `-d customflag` to V.
   That corresponds to `$if customflag ? {}`, but for a whole file, not just a
@@ -7169,7 +7228,9 @@ to race conditions. There are several approaches to deal with these:
 
 ## Cross compilation
 
-To cross compile your project simply run
+Cross compilation is supported for Windows, Linux and FreeBSD.
+
+To cross compile your project simply run:
 
 ```shell
 v -os windows .
@@ -7181,8 +7242,14 @@ or
 v -os linux .
 ```
 
+or
+
+```shell
+v -os freebsd .
+```
+
 > [!NOTE]
-> Cross-compiling a windows binary on a linux machine requires the GNU C compiler for
+> Cross-compiling a Windows binary on a Linux machine requires the GNU C compiler for
 > MinGW-w64 (targeting Win64) to first be installed.
 
 For Ubuntu/Debian based distributions:

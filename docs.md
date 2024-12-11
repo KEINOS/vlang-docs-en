@@ -1947,6 +1947,23 @@ println(typ)
 // 'lowercase'
 ```
 
+A match statement also can match the variant types of a `sumtype`. Note that
+in that case, the match is exhaustive, since all variant types are mentioned 
+explicitly, so there is no need for an `else{}` branch.
+
+```v nofmt
+struct Dog {}
+struct Cat {}
+struct Veasel {}
+type Animal = Dog | Cat | Veasel
+a := Animal(Veasel{})
+match a {
+	Dog { println('Bay') }
+	Cat { println('Meow') }
+	Veasel { println('Vrrrrr-eeee') } // see: https://www.youtube.com/watch?v=qTJEDyj2N0Q
+}
+```
+
 You can also use ranges as `match` patterns. If the value falls within the range
 of a branch, that branch will be executed.
 
@@ -5878,6 +5895,18 @@ fn C.DefWindowProc(hwnd int, msg int, lparam int, wparam int)
 
 @[callconv: 'fastcall']
 type FastFn = fn (int) bool
+
+// Calls to the following function, will have to use its return value somehow.
+// Ignoring it, will emit warnings.
+@[must_use]
+fn f() int {
+	return 42
+}
+
+fn g() {
+	// just calling `f()` here, will produce a warning
+	println(f()) // this is fine, because the return value was used as an argument
+}
 
 // Windows only (and obsolete; instead of it, use `-subsystem windows` when compiling)
 // Without this attribute all graphical apps will have the following behavior on Windows:

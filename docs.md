@@ -120,6 +120,7 @@ by using any of the following commands in a terminal:
     * [Mutable arguments](#mutable-arguments)
     * [Variable number of arguments](#variable-number-of-arguments)
     * [Anonymous & higher-order functions](#anonymous--higher-order-functions)
+    * [Lambda expressions](#lambda-expressions)
     * [Closures](#closures)
     * [Parameter evaluation order](#parameter-evaluation-order)
 * [References](#references)
@@ -1612,7 +1613,7 @@ So in `abc/def/source.v` the first line will be `module def`, and not `module ab
 `import module_name` statements must respect file hierarchy, you cannot `import def`, only
 `abc.def`
 
-Refering to a module symbol such as a function or const, only needs module name as prefix:
+Referring to a module symbol such as a function or const, only needs module name as prefix:
 
 ```v ignore
 module def
@@ -3021,6 +3022,28 @@ fn main() {
 }
 ```
 
+### Lambda expressions
+
+Lambda expressions in V are small anonymous functions, defined using
+the `|variables| expression` syntax. Note: this syntax is valid only inside calls to higher
+order functions.
+
+Here are some examples:
+```v
+mut a := [1, 2, 3]
+a.sort(|x, y| x > y) // sorts the array, defining the comparator with a lambda expression
+println(a.map(|x| x * 10)) // prints [30, 20, 10]
+```
+
+```v
+// Lambda function can be used as callback
+fn f(cb fn (a int) int) int {
+	return cb(10)
+}
+
+println(f(|x| x + 4)) // prints 14
+```
+
 ### Closures
 
 V supports closures too.
@@ -4163,6 +4186,18 @@ to the `error()` function.
 ```v oksyntax
 user := repo.find_user_by_id(7) or {
 	println(err) // "User 7 not found"
+	return
+}
+```
+
+Use `err is ...` to compare errors:
+```v oksyntax
+import io
+
+x := read() or {
+	if err is io.Eof {
+		println('end of file')
+	}
 	return
 }
 ```
@@ -6052,6 +6087,7 @@ that are substituted at compile time:
 - `@MOD` => replaced with the name of the current V module.
 - `@STRUCT` => replaced with the name of the current V struct.
 - `@FILE` => replaced with the absolute path of the V source file.
+- `@DIR` => replaced with the absolute path of the *folder*, where the V source file is.
 - `@LINE` => replaced with the V line number where it appears (as a string).
 - `@FILE_LINE` => like `@FILE:@LINE`, but the file part is a relative path.
 - `@LOCATION` => file, line and name of the current type + method; suitable for logging.
@@ -7373,7 +7409,7 @@ import sync
 __global (
 	sem   sync.Semaphore // needs initialization in `init()`
 	mtx   sync.RwMutex // needs initialization in `init()`
-	f1    = f64(34.0625) // explicily initialized
+	f1    = f64(34.0625) // explicitly initialized
 	shmap shared map[string]f64 // initialized as empty `shared` map
 	f2    f64 // initialized to `0.0`
 )
@@ -7636,7 +7672,7 @@ Hello world, value: 12345
 #0 10:42:33 /v/examples>
 ```
 
-Note, that the C function redeclarations look very simillar to the V ones, with some differences:
+Note, that the C function redeclarations look very similar to the V ones, with some differences:
 1) They lack a body (they are defined on the C side) .
 2) Their names start with `C.` .
 3) Their names can have capital letters (unlike V ones, that are required to use snake_case) .
@@ -8292,6 +8328,9 @@ Assignment Operators
 >>=  <<=  >>>=
 &&= ||=
 ```
+
+Note: in V, `assert -10 % 7 == -3` passes. In programming, the sign of the remainder
+depends upon the signs of divisor and dividend.
 
 ## Other online resources
 

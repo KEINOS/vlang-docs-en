@@ -6558,6 +6558,13 @@ fn main() {
 V can embed arbitrary files into the executable with the `$embed_file(<path>)`
 compile time call. Paths can be absolute or relative to the source file.
 
+Paths could also use the compile time pseudo variables `@VEXEROOT`,
+`@VMODROOT`, `@DIR`, `$d` and `$env`.
+
+```v ignore
+logo := $embed_file('@VEXEROOT/examples/assets/logo.png')
+```
+
 Note that by default, using `$embed_file(file)`, will always embed the whole content
 of the file, but you can modify that behaviour by passing: `-d embed_only_metadata`
 when compiling your program. In that case, the file will not be embedded. Instead,
@@ -7947,6 +7954,17 @@ Add `#flag` directives to the top of your V files to provide C compilation flags
 - `-l` for adding C library names that you want to get linked
 - `-L` for adding C library files search paths
 - `-D` for setting compile time variables
+
+You can also use `#flag` directives, to link to static C libraries, which
+will be added last (note the .a suffix):
+```v oksyntax
+#flag /path/to/ffi.a
+```
+If you need to reverse the order (prepend the static library in the libs section of the
+C compilation line, before other libs), use:
+```v oksyntax
+#flag /path/to/ffi.a@START_LIBS
+```
 
 You can (optionally) use different flags for different targets.
 Currently the `linux`, `darwin` , `freebsd`, and `windows` flags are supported.

@@ -19,6 +19,18 @@ The language promotes writing simple and clear code with minimal abstraction.
 Despite being simple, V gives the developer a lot of power.
 Anything you can do in other languages, you can do in V.
 
+## Language specification
+
+V does not yet have a separate formal language specification document like the Go spec.
+
+Until V 1.0, the language reference is defined by:
+* This document (`doc/docs.md`) for syntax and semantics.
+* The compiler implementation in `vlib/v/`.
+* The executable language tests in `vlib/v/tests/`, `vlib/v/parser/`,
+  `vlib/v/checker/`, and `vlib/v/slow_tests/inout/`.
+
+When documentation and implementation diverge, compiler behavior and tests are the source of truth.
+
 ## Installing V from source
 
 The best way to get the latest and greatest V, is to install it from source.
@@ -59,6 +71,7 @@ by using any of the following commands in a terminal:
 <table>
 <tr><td width=33% valign=top>
 
+* [Language specification](#language-specification)
 * [Hello world](#hello-world)
 * [Running a project folder](#running-a-project-folder-with-several-files)
 * [Comments](#comments)
@@ -1409,7 +1422,8 @@ fnums[2] = 100
 println(fnums) // => [1, 10, 100]
 println(typeof(fnums).name) // => [3]int
 
-fnums2 := [1, 10, 100]! // short init syntax that does the same (the syntax will probably change)
+fnums2 := [1, 10, 100].to_fixed_size() // explicit conversion syntax
+fnums3 := [1, 10, 100]! // short init syntax, equivalent to `.to_fixed_size()`
 
 anums := fnums[..] // same as `anums := fnums[0..fnums.len]`
 println(anums) // => [1, 10, 100]
@@ -5608,9 +5622,22 @@ sql db {
 
 For more examples and the docs, see [vlib/orm](https://github.com/vlang/v/tree/master/vlib/orm).
 
-### Troubleshooting compilation problems with SQLite on Windows
-On Windows, if you get a compilation error, about a missing sqlite3.h file, you have to run:
-`v vlib/db/sqlite/install_thirdparty_sqlite.vsh` once, then retry your compilation.
+### Troubleshooting compilation problems with SQLite
+
+On **any platform** (Windows, Linux, macOS), you can run:
+
+`v vlib/db/sqlite/install_thirdparty_sqlite.vsh`
+
+This downloads the SQLite amalgamation source and places it in
+`v/thirdparty/sqlite`. V will then compile it automatically
+during your build.
+
+On **Linux**, you can also install the system development package
+instead:
+
+- Debian/Ubuntu: `sudo apt install -y libsqlite3-dev`
+- Fedora/RHEL: `sudo dnf -y install sqlite-devel`
+- Arch: `sudo pacman -S sqlite`
 
 ### Using the self contained SQLite module
 V also maintains a separate `sqlite` module, that wraps an SQLite amalgamation, but otherwise
@@ -5942,6 +5969,8 @@ V has several attributes that modify the behavior of functions and structs.
 
 An attribute is a compiler instruction specified inside `[]` right before a
 function/struct/enum declaration and applies only to the following declaration.
+Attributes with arguments support both `name: value` and call-style `name(value)` syntax.
+Call-style attributes can also use named arguments.
 
 ```v
 // @[flag] enables Enum types to be used as bitfields
@@ -6054,17 +6083,18 @@ Depending on the type and impact of the change, you may want to consult with the
 deprecating a function.
 
 
-```v
+```v nofmt
 // Calling this function will result in a deprecation warning
-
 @[deprecated]
-fn old_function() {
-}
+fn old_function() {}
 
 // It can also display a custom deprecation message
-
 @[deprecated: 'use new_function() instead']
 fn legacy_function() {}
+
+// Equivalent call-style syntax:
+@[deprecated('use new_function() instead')]
+fn legacy_function_call_style() {}
 
 // You can also specify a date, after which the function will be
 // considered deprecated. Before that date, calls to the function
@@ -6078,6 +6108,10 @@ fn legacy_function() {}
 @[deprecated: 'use new_function2() instead']
 @[deprecated_after: '2021-05-27']
 fn legacy_function2() {}
+
+// Equivalent call-style syntax:
+@[deprecated(msg: 'use new_function2() instead', after: '2021-05-27')]
+fn legacy_function2_call_style() {}
 ```
 
 ```v globals
@@ -6089,6 +6123,13 @@ fn inlined_function() {
 // This function's calls will NOT be inlined.
 @[noinline]
 fn function() {
+}
+
+// Calls to this function in const and enum expressions can be evaluated at compile time,
+// when all call arguments are compile-time constants.
+@[comptime]
+fn make_mask(value u32, shift u32) u32 {
+	return value << shift
 }
 
 // This function will NOT return to its callers.
@@ -7693,6 +7734,14 @@ sudo pacman -S mingw-w64-gcc
 
 If you don't have any C dependencies, that's all you need to do. This works even
 when compiling GUI apps using the `ui` module or graphical apps using `gg`.
+
+If you need a custom cross compiler, pass `-cc <compiler>` for one build, or set
+`VCROSS_COMPILER_NAME` in your environment.
+Example:
+
+```shell
+v -os linux -cc cosmocc .
+```
 
 You will need to install Clang, LLD linker, and download a zip file with
 libraries and include files for Windows and Linux. V will provide you with a link.

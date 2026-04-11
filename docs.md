@@ -54,6 +54,24 @@ If V is already installed on a machine, it can be upgraded to its latest version
 by using the V's built-in self-updater.
 To do so, run the command `v up`.
 
+## Project-local compiler versions with `.vvmrc`
+
+If a project contains a `.vvmrc` file, commands like `v run .`, `v run file.v`,
+or `v file.v` will try to find and delegate to the requested V compiler version.
+This makes it easier to keep a project pinned to a known compiler release.
+
+The file should contain one version per project, for example:
+
+```text
+0.4.12
+```
+
+Both `0.4.12` and `v0.4.12` are accepted. The special aliases `latest` and
+`current` keep using the currently running compiler.
+
+V searches for `.vvmrc` from the target path upward and stops at repository and
+project boundaries such as `.git`, `.hg`, `.svn`, and `.v.mod.stop`.
+
 ## Packaging V for distribution
 See the [notes on how to prepare a package for V](packaging_v_for_distributions.md) .
 
@@ -487,6 +505,10 @@ fn main() {
 }
 ```
 
+The compiler also warns about obviously constant conditions, for example
+self-comparisons like `if x == x { ... }` or `match` branches that can never be
+reached. These warnings help catch redundant checks and dead branches early.
+
 To ignore values returned by a function `_` can be used
 ```v
 fn foo() (int, int) {
@@ -722,11 +744,13 @@ To use a format specifier, follow this pattern:
   >
   > V does not currently support the use of `'` or `#` as format flags, and V supports but
   > doesn't need `+` to right-align since that's the default.
-- width: may be an integer value describing the minimum width of total field to output.
+- width: may be an integer value describing the minimum width of total field to output. For
+  runtime widths, wrap an `int` expression in parentheses, for example `${name:(width)}`.
 - precision: an integer value preceded by a `.` will guarantee that many digits after the decimal
   point without any insignificant trailing zeros. If displaying insignificant zero's is desired,
   append a `f` specifier to the precision value (see examples below). Applies only to float
-  variables and is ignored for integer variables.
+  variables and is ignored for integer variables. Runtime precisions use the same parenthesized
+  form, for example `${value:(width).(precision)f}`.
 - type: `f` and `F` specify the input is a float and should be rendered as such, `e` and `E` specify
   the input is a float and should be rendered as an exponent (partially broken), `g` and `G` specify
   the input is a float--the renderer will use floating point notation for small values and exponent
@@ -3190,8 +3214,14 @@ i = 123
 println(func() == 1) // still true
 ```
 
-However, the variable can be modified inside the anonymous function.
-The change won't be reflected outside, but will be in the later function calls.
+However, the captured copy can be modified inside the anonymous function.
+`mut` only makes the closure's copy mutable; it does not capture the original
+variable by reference. The change won't be reflected outside, but will be in
+later function calls.
+
+This also applies to captured arrays, maps, and structs. For example,
+`fn [mut files]` inside `os.walk(...)` will modify the closure's `files` copy,
+not the outer `files` variable.
 
 ```v oksyntax
 fn new_counter() fn () int {
@@ -3220,6 +3250,19 @@ print_counter := fn [ref] () {
 print_counter() // 0
 i = 10
 print_counter() // 10
+```
+
+For callbacks like `os.walk`, use `os.walk_with_context` when the callback
+needs to update caller-owned state:
+
+```v oksyntax
+import os
+
+mut files := []string{}
+os.walk_with_context('.', &files, fn (mut files []string, file string) {
+	files << file
+})
+println(files.len > 0)
 ```
 
 ### Parameter evaluation order
@@ -3603,6 +3646,14 @@ To define a new type `NewType` as an alias for `ExistingType`,
 do `type NewType = ExistingType`.<br/>
 This is a special case of a [sum type](#sum-types) declaration.
 
+Numeric aliases use ordinary conversions for initialization:
+
+```v
+type Decimal = f64
+
+amount := Decimal(0.0)
+```
+
 ### Enums
 
 An enum is a group of constant integer values, each having its own name,
@@ -3943,6 +3994,22 @@ fn main() {
 }
 ```
 
+Smart casting an interface value to `T` also means the smart-casted variable has type `&T`
+inside that branch. This matters when returning the value from a generic function:
+
+```v oksyntax
+fn get_component[T](entity Entity) !T {
+	for component in entity.components {
+		if component is T {
+			return *component
+		}
+	}
+	return error('Entity does not have component')
+}
+```
+
+If you want to return the smart-casted pointer itself, use `!&T` as the return type instead.
+
 ```v
 // interface-example.4
 interface IFoo {
@@ -4174,6 +4241,23 @@ if mut w is Mars {
 
 Otherwise `w` would keep its original type.
 > This works for both simple variables and complex expressions like `user.name`
+> and `values[i]`.
+
+Smart casts also work on indexed expressions in `match` branches:
+
+```v oksyntax
+type Entry = int | string
+
+values := [Entry('v')]
+match values[0] {
+	string {
+		assert values[0] == 'v'
+	}
+	else {
+		assert false
+	}
+}
+```
 
 #### Matching sum types
 
@@ -4285,6 +4369,21 @@ fn main() {
 	my_optional_int := ?int(none)
 	my_optional_string := ?string(none)
 	my_optional_user := ?User(none)
+}
+```
+
+Trailing option-typed parameters can also be omitted in function calls.
+When they are not passed, V supplies `none`:
+
+```v ignore
+fn connect(url string, timeout ?int) {
+	actual_timeout := timeout or { 1000 }
+	println('${url} -> ${actual_timeout}')
+}
+
+fn main() {
+	connect('https://vlang.io')
+	connect('https://vlang.io', 5000)
 }
 ```
 
@@ -5639,13 +5738,40 @@ instead:
 - Fedora/RHEL: `sudo dnf -y install sqlite-devel`
 - Arch: `sudo pacman -S sqlite`
 
+### Interactive SQLite CLI
+
+V includes a built-in SQLite CLI (`v sqlite`) as a V-native
+replacement for `sqlite3`:
+
+```sh
+v sqlite mydb.db
+```
+
+It provides a full readline REPL with history and tab completion,
+9 output modes, `.dump`, `.import`/`.export`, `.backup`, session
+control, and schema tools. Run `.help` inside the REPL for the
+full command list.
+
+### Convenience Methods
+
+The `db.sqlite` module includes helper methods for common queries:
+
+```v ignore
+db.tables()!         // list all user table names
+db.columns('users')! // column names for a table
+db.schema('users')!  // CREATE statement(s)
+db.db_size()!        // file size in bytes
+```
+
 ### Using the self contained SQLite module
-V also maintains a separate `sqlite` module, that wraps an SQLite amalgamation, but otherwise
-has the same API as the `db.sqlite` module. Its benefit, is that with it, you do not need to
-install a separate system level sqlite package/library on your system (which can be hard on
-some systems like windows, or systems with musl for example).
-Its negative is that it can make your compilations a bit slower (since it compiles SQLite
-from C, in addition to your own code).
+
+V also maintains a separate `sqlite` module, that wraps an SQLite
+amalgamation, but otherwise has the same API as the `db.sqlite`
+module. Its benefit is that you do not need to install a separate
+system-level sqlite package (which can be hard on some systems
+like Windows, or systems with musl for example). Its downside is
+that it can make compilations a bit slower since it compiles
+SQLite from C in addition to your own code.
 
 To use it, do:
 ```sh

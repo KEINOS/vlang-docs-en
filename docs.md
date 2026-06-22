@@ -1271,10 +1271,11 @@ There are further built-in methods for arrays:
 * `a.prepend(arr)` inserts elements of array `arr` at the beginning
 * `a.trim(new_len)` truncates the length (if `new_length < a.len`, otherwise does nothing)
 * `a.clear()` empties the array without changing `cap` (equivalent to `a.trim(0)`)
-* `a.delete_many(start, size)` removes `size` consecutive elements from index `start`
-  &ndash; triggers reallocation
+* `a.delete_many(start, size)` removes `size` consecutive elements from index `start`,
+  preserving order. On the C backend, it reuses the backing buffer and keeps capacity when
+  no slices share it
 * `a.delete(index)` equivalent to `a.delete_many(index, 1)`
-* `a.delete_last()` removes the last element
+* `a.delete_last()` removes the last element; on the C backend it does not change `cap`
 * `a.first()` equivalent to `a[0]`
 * `a.last()` equivalent to `a[a.len - 1]`
 * `a.pop()` removes the last element and returns it
@@ -1912,6 +1913,13 @@ println(u_name) // John
 #### Type checks and casts
 
 You can check the current type of a sum type using `is` and its negated form `!is`.
+
+Note that the variable's declared type stays the sum type itself. In the example
+below, `x` has the static type `Alphabet`, even though the value it holds is an
+`Abc`. Inside an `is` check (or a `match` branch) the compiler automatically
+*smart casts* `x` to the matched variant, so within that block `x` has the static
+type `Abc` and you can access its fields directly and safely, without writing an
+explicit `as` cast.
 
 You can do it either in an `if`:
 

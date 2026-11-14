@@ -29,6 +29,12 @@ prebuilt V package, that needs to ensure that the final package after installati
 read only, that will be a problem, since V will try to write to its cmd/tools/ folder.
 To prevent that, you need to build *all* the commands/executables in that folder *ahead of time*.
 This can be done by the command `v build-tools`.
+A tool can need modules from outside vlib/, which it declares as `dev_dependencies` in its
+`v.mod` in cmd/tools/ (no bundled tool currently does). When such a module is not found,
+`v build-tools` (and the tool, when V compiles it on demand) clones it from
+https://github.com/vlang/ into the first `VMODULES` folder, which needs network access. If your
+build environment is offline, run `v install <module>` (or put a copy of the module in
+`VMODULES`) before `v build-tools`. The built tools do not need it afterwards.
 
 2) Tell V to not try to recompile its tools anymore. To do that, V supports checking for the
 presence of a file named `cmd/tools/.disable_autorecompilation` (that file is missing by default
@@ -106,7 +112,7 @@ echo "Alternatively, if you do want a more recent V version, just clone V from s
 echo "then follow the instructions here: https://github.com/vlang/v#installing-v-from-source')" >> cmd/tools/vself.v
 
 v -prod -o v cmd/v                            ## build V itself with -prod
-./v -prod build-tools                         ## build all tools with -prod too
+./v build-tools                               ## build all tools (NB: do *not* pass -prod here; some large tools, like c_builder.v, can exhaust memory during the -prod LTO C compile)
 touch ./cmd/tools/.disable_autorecompilation  ## tell V to not try to recompile any tool anymore
 
 ### Cleanup folders that would not be needed inside a package,
